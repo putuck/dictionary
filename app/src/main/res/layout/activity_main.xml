@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:animateLayoutChanges="true"
+    android:background="@color/appBackground"
+    android:orientation="vertical"
+    tools:context=".MainActivity">
+
+    <EditText
+        android:id="@+id/textWord"
+        style="@style/Widget.AppCompat.AutoCompleteTextView"
+        android:layout_width="177dp"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="30dp"
+        android:layout_weight="0"
+        android:gravity="center_vertical"
+        android:hint="Enter word..."
+        android:inputType="text"
+        android:singleLine="false"
+        android:textColor="@color/editText" />
+
+    <ProgressBar
+        android:id="@+id/progressBar"
+        style="?android:attr/progressBarStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_vertical|center_horizontal"
+        android:layout_marginTop="20dp"
+        android:layout_weight="0"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/textMeaning"
+        android:layout_width="304dp"
+        android:layout_height="208dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="20dp"
+        android:layout_weight="0"
+        android:gravity="top|left"
+        android:isScrollContainer="true"
+        android:scrollbars="vertical"
+        android:textColor="#000000"
+        android:visibility="gone" />
+
+    <ImageButton
+        android:id="@+id/pronounceBtn"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:layout_marginTop="20dp"
+        android:layout_weight="0"
+        android:onClick="pronounce"
+        android:tint="@android:color/black"
+        android:visibility="gone"
+        app:srcCompat="@android:drawable/ic_lock_silent_mode_off" />
+
+    <Button
+        android:id="@+id/button"
+        style="@style/Widget.AppCompat.Button.Colored"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="20dp"
+        android:layout_weight="0"
+        android:onClick="findMeaning"
+        android:text="Submit" />
+
+
+</LinearLayout>
