@@ -2,14 +2,9 @@ package com.example.rajiv.dictionary
 
 import android.arch.lifecycle.MutableLiveData
 import android.arch.lifecycle.Observer
+import android.arch.lifecycle.ViewModel
 
-import com.example.rajiv.dictionary.definition.ResponseData
-import com.example.rajiv.dictionary.definition.Entry
-import com.example.rajiv.dictionary.definition.Sense
-import com.example.rajiv.dictionary.lemma.InflectionOf
-import com.example.rajiv.dictionary.lemma.Lemmatron
-import com.example.rajiv.dictionary.lemma.LexicalEntry
-import com.example.rajiv.dictionary.lemma.Result
+
 import com.example.rajiv.dictionary.pronunciation.Data
 import com.example.rajiv.dictionary.pronunciation.Pronunciation
 
@@ -18,140 +13,147 @@ import retrofit2.Callback
 import retrofit2.Retrofit
 
 import com.example.rajiv.dictionary.RetrofitInstance.getRetrofitInstance
+import com.example.rajiv.dictionary.definition.*
+import com.example.rajiv.dictionary.lemma.GrammaticalFeature
+import com.example.rajiv.dictionary.lemma.InflectionOf
+import com.example.rajiv.dictionary.lemma.Lemmatron
+import retrofit2.Response
+import java.io.File
 import java.util.*
+import kotlin.collections.ArrayList
 
-class WordData {
-    private val meanings: MutableLiveData<List<List<String>>>
+class WordData: ViewModel() {
+    private var word: String? = null
+    private var wordFullData: List<Result>? = null
+
+    private lateinit var shortDef: MutableLiveData<ArrayList<String>>
+    private lateinit var detailDef: MutableLiveData<ArrayList<DefWithCategory>>
+    private lateinit var pronounceFile: File
+
+    private val meanings: MutableLiveData<ArrayList<DefWithCategory>> = MutableLiveData()
     val retrofit = RetrofitInstance.getRetrofitInstance()
     val service: OxfordApiService? = retrofit.create(OxfordApiService::class.java)
 
-    init {
-        meanings = MutableLiveData()
-        val lists = ArrayList<List<String>>()
-        meanings.value = lists
+    fun getWordFullData(inputWord: String) {
+        val query = service!!.getFullWordData(inputWord)
+        query.enqueue(object: Callback<ResponseData>{
+            override fun onResponse(call: Call<ResponseData>?, response: retrofit2.Response<ResponseData>) {
+                if(response.isSuccessful){
+                    val responseData = response.body()
+                    wordFullData = responseData!!.results
+                }
+                else{
 
-
-    }
-
-    private fun getLemma(word: String): MutableLiveData<MutableList<String?>>? {
-
-
-        val headWord: MutableLiveData<MutableList<String?>> = MutableLiveData()
-
-        val query = service?.getLemma(word)
-        query?.enqueue(object : Callback<Lemmatron> {
-            override fun onResponse(call: Call<Lemmatron>,
-                                    response: retrofit2.Response<Lemmatron>) {
-                if (response.isSuccessful) {
-                    val lemmatron = response.body()
-                    val result = (lemmatron?.results)!!.filterNotNull()
-                    val lexicalEntry: MutableList<LexicalEntry?> = mutableListOf<LexicalEntry?>()
-                    for(res in result!! ) {
-                        for (lex in res.lexicalEntries!!)
-                             lexicalEntry.add(lex)
-                    }
-                    val inflectionOf: MutableList<InflectionOf?> = mutableListOf<InflectionOf?>()
-                    for(lex in lexicalEntry) {
-                        lex?.let {
-                            for(inf in it.inflectionOf)
-                                inf?.let { inflectionOf.add(it)}
-                        }
-                    }
-
-                    val lemma: MutableList<String?> = mutableListOf<String?>()
-                    for(inf in inflectionOf) {
-                           inf?.let { lemma.add(inf.text) }
-                    }
-                    headWord?.setValue(lemma)
-                } else {
-                    headWord?.setValue(mutableListOf<String?>(""))
                 }
             }
 
-            override fun onFailure(call: Call<Lemmatron>, t: Throwable) {
-
+            override fun onFailure(call: Call<ResponseData>?, t: Throwable?) {
+                //TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
             }
         })
-        return headWord
     }
 
-    fun getMeaning(word: String): MutableLiveData<List<List<String>>> {
-        val headWord = getLemma(word)
-        headWord?.observeForever { lemmaList ->
-            if (lemmaList != null) {
-                if (lemmaList.get(0) == "") {
-                    meanings.setValue(null)
+    fun getShortDef(inputWord: String): MutableLiveData<ArrayList<String>> {
+        if (inputWord.equals(word))
+            return shortDef
+        else{
+            getWordFullData(inputWord)
+        }
+    }
 
-                } else {
-                    val lemma: String = lemmaList.filterNotNull().get(0)
-                    val result = service?.getMeaning(lemma)
+    fun getMeaning(word: String): MutableLiveData<ArrayList<DefWithCategory>> {
+                    val result = service!!.getFullWordData(word)
                     result?.enqueue(object : Callback<ResponseData> {
                         override fun onResponse(call: Call<ResponseData>, response: retrofit2.Response<ResponseData>) {
-                            val results: List<com.example.rajiv.dictionary.definition.Result>
-                            val lexicalEntries = ArrayList<com.example.rajiv.dictionary.definition.LexicalEntry>()
+                            val results: List<Result>
+                            val lexicalEntries = ArrayList<LexicalEntry>()
                             var entries: List<Entry> = ArrayList()
                             var senses: List<Sense> = ArrayList()
-                            var definitions: List<String> = ArrayList()
+                            var definitions = ArrayList<DefWithCategory>()
                             val nounDefinitions = ArrayList<String>()
                             val verbDefinitions = ArrayList<String>()
                             val adjectiveDefinitions = ArrayList<String>()
 
+                            if(response.isSuccessful) {
+                                val responseData = response.body()
 
-                            val responseData = response.body()
-                            results = responseData!!.results
+                                results = responseData!!.results
+                                wordFullData = results
 
-                            // Create LexicalEntry List
-                            val resultLength = results.size
-                            for (i in 0 until resultLength) {
-                                val lexicalSize = results[i].lexicalEntries.size
-                                for (j in 0 until lexicalSize) {
-                                    lexicalEntries.add(results[i].lexicalEntries[j])
+                                // Create LexicalEntry List
+                                for (res in results) {
+                                    res?.let {
+                                        for (lex in it.lexicalEntries) {
+                                            lex?.let { lexicalEntries.add(it) }
+                                        }
+                                    }
                                 }
-                            }
 
+                                for (l in lexicalEntries) {
+                                    for (e in l.entries) {
+                                        e?.let {
+                                            for (s in it.senses) {
+                                                val definition = (s.definitions)
+                                                        ?: s.crossReferenceMarkers
+                                                definition?.let {
+                                                    for (def in definition) {
+                                                        val defWithCategory = DefWithCategory(def.capitalize()+".\n\n", l.lexicalCategory.capitalize())
+                                                        definitions.add(defWithCategory)
+                                                    }
+                                                }
 
-                            for (l in lexicalEntries) {
-                                entries = l.entries
-                                for (e in entries) {
-                                    senses = e.senses
-                                    for (s in senses) {
-                                        definitions = s.definitions
-                                        val lexicalCategory = l.lexicalCategory
-                                        for (d in definitions) {
-                                            if (lexicalCategory == "Noun" && d != null) {
-                                                //for (String n : definitions)
-                                                nounDefinitions.add(d)
-                                            }
-                                            if (lexicalCategory == "Verb") {
-                                                //for (String v : definitions)
-                                                verbDefinitions.add(d)
-                                            }
-                                            if (lexicalCategory == "Adjective") {
-                                                //for (String a : definitions)
-                                                adjectiveDefinitions.add(d)
                                             }
                                         }
                                     }
                                 }
+                                val condensedDef = createObjList(definitions)
+                                meanings.value = condensedDef
+                            }
+                            else{
+                                val result = service!!.getLemma(word)
+                                result?.enqueue(object: Callback<Lemmatron> {
+                                    override fun onResponse(call: Call<Lemmatron>, response: Response<Lemmatron>){
+                                        val results: List<com.example.rajiv.dictionary.lemma.Result>
+                                        val lexical: com.example.rajiv.dictionary.lemma.LexicalEntry
+                                        val grammar: GrammaticalFeature
+                                        val inflection: InflectionOf
+
+                                        if(response.isSuccessful){
+                                            val responseData = response.body()
+                                            results = responseData!!.results
+                                            lexical = results!!.get(0).lexicalEntries[0]
+                                            grammar = lexical.grammaticalFeatures[0]
+                                            inflection = lexical.inflectionOf[0]
+
+                                            val definition: String = grammar.text + " of " + inflection.text + ".\n\n"
+                                            val cat: String = lexical.lexicalCategory
+                                            val def = DefWithCategory(definition, cat)
+                                            //val definitions = ArrayList<DefWithCategory>()
+                                            definitions.add(def)
+                                            val condensedDef = createObjList(definitions)
+                                            meanings.value = condensedDef
+
+
+                                        }
+                                        else{
+                                            definitions.add(DefWithCategory("Please check the spelling of the word entered.", "Error"))
+                                            meanings.value = definitions
+                                        }
+                                    }
+
+                                    override fun onFailure(call: Call<Lemmatron>?, t: Throwable?) {
+
+                                    }
+                                })
                             }
 
-                            val meaning = ArrayList<List<String>>()
-                            meaning.add(nounDefinitions)
-                            meaning.add(adjectiveDefinitions)
-                            meaning.add(verbDefinitions)
 
-                            meanings.setValue(meaning)
                         }
 
                         override fun onFailure(call: Call<ResponseData>, t: Throwable) {
 
-
                         }
                     })
-                }
-
-            }
-        }
 
         return meanings
 
@@ -186,5 +188,21 @@ class WordData {
         return pronuciation
 
 
+    }
+
+    fun createObjList(list: ArrayList<DefWithCategory>): ArrayList<DefWithCategory>{
+        val defList = ArrayList<DefWithCategory>()
+        defList.add(list[0])
+
+        loop@ for(l in list.subList(1, list.size)){
+            for(def in defList){
+                if(def.category == l.category) {
+                    def.def +=  l.def
+                    continue@loop
+                }
+            }
+            defList.add(DefWithCategory(l.def, l.category))
+        }
+        return defList
     }
 }
